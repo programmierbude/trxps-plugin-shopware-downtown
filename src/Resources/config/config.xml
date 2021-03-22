@@ -1,0 +1,48 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<config xmlns:xsi="http://www.w3.org/2001/XMLSchema-instance"
+        xsi:noNamespaceSchemaLocation="https://raw.githubusercontent.com/shopware/platform/master/src/Core/System/SystemConfig/Schema/config.xsd">
+    <card>
+        <title>API</title>
+        <title lang="de-DE">API</title>
+
+        <input-field>
+            <name>liveApiKey</name>
+            <copyable>true</copyable>
+            <label>Live Key</label>
+            <label lang="de-DE">Live Key</label>
+        </input-field>
+        <input-field>
+            <name>testApiKey</name>
+            <copyable>true</copyable>
+            <label>Test Key</label>
+            <label lang="de-DE">Test Key</label>
+        </input-field>
+        <input-field>
+            <name>liveShopId</name>
+            <copyable>true</copyable>
+            <label>Live Shop ID</label>
+            <label lang="de-DE">Live Shop ID</label>
+        </input-field>
+        <input-field>
+            <name>testShopId</name>
+            <copyable>true</copyable>
+            <label>Test Shop ID</label>
+            <label lang="de-DE">Test Shop ID</label>
+        </input-field>
+    </card>
+    <card>
+        <title>Modes</title>
+        <title lang="de-DE">Modi</title>
+        <input-field type="bool">
+            <name>testMode</name>
+            <label>Test Mode</label>
+            <label lang="de-DE">Test Modus</label>
+        </input-field>
+        <input-field type="bool">
+            <name>debugMode</name>
+
+            <label>Debug Mode</label>
+            <label lang="de-DE">Debug Modus</label>
+        </input-field>
+    </card>
+</config>

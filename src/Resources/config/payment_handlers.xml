@@ -1,0 +1,123 @@
+<?xml version="1.0" ?>
+
+<container xmlns="http://symfony.com/schema/dic/services"
+           xmlns:xsi="http://www.w3.org/2001/XMLSchema-instance"
+           xsi:schemaLocation="http://symfony.com/schema/dic/services http://symfony.com/schema/dic/services/services-1.0.xsd">
+
+    <services>
+
+        <!-- Default PaymentHandler -->
+        <service id="Etbag\TrxpsPayments\Handler\PaymentHandler" class="Etbag\TrxpsPayments\Handler\PaymentHandler">
+            <argument type="service" id="Shopware\Core\Checkout\Order\Aggregate\OrderTransaction\OrderTransactionStateHandler" />
+            <argument type="service" id="Etbag\TrxpsPayments\Service\OrderService" />
+            <argument type="service" id="Etbag\TrxpsPayments\Service\CustomerService" />
+            <argument type="service" id="Etbag\TrxpsPayments\Api\TrxpsApiClient" />
+            <argument type="service" id="Etbag\TrxpsPayments\Service\SettingsService" />
+            <argument type="service" id="Etbag\TrxpsPayments\Helper\PaymentStatusHelper" />
+            <argument type="service" id="Etbag\TrxpsPayments\Service\LoggerService" />
+            <argument type="service" id="router"/>
+            <argument>%kernel.environment%</argument>
+            <tag name="shopware.payment.method.async" />
+        </service>
+
+        <!-- Bank Transfer PaymentHandler -->
+        <service id="Etbag\TrxpsPayments\Handler\Method\BankTransferPayment" class="Etbag\TrxpsPayments\Handler\Method\BankTransferPayment">
+            <argument type="service" id="Shopware\Core\Checkout\Order\Aggregate\OrderTransaction\OrderTransactionStateHandler" />
+            <argument type="service" id="Etbag\TrxpsPayments\Service\OrderService" />
+            <argument type="service" id="Etbag\TrxpsPayments\Service\CustomerService" />
+            <argument type="service" id="Etbag\TrxpsPayments\Api\TrxpsApiClient" />
+            <argument type="service" id="Etbag\TrxpsPayments\Service\SettingsService" />
+            <argument type="service" id="Etbag\TrxpsPayments\Helper\PaymentStatusHelper" />
+            <argument type="service" id="Etbag\TrxpsPayments\Service\LoggerService" />
+            <argument type="service" id="router"/>
+            <argument>%kernel.environment%</argument>
+            <tag name="shopware.payment.method.async" />
+        </service>
+
+        <!-- Credit Card PaymentHandler -->
+        <service id="Etbag\TrxpsPayments\Handler\Method\CreditCardPayment" class="Etbag\TrxpsPayments\Handler\Method\CreditCardPayment">
+            <argument type="service" id="Shopware\Core\Checkout\Order\Aggregate\OrderTransaction\OrderTransactionStateHandler" />
+            <argument type="service" id="Etbag\TrxpsPayments\Service\OrderService" />
+            <argument type="service" id="Etbag\TrxpsPayments\Service\CustomerService" />
+            <argument type="service" id="Etbag\TrxpsPayments\Api\TrxpsApiClient" />
+            <argument type="service" id="Etbag\TrxpsPayments\Service\SettingsService" />
+            <argument type="service" id="Etbag\TrxpsPayments\Helper\PaymentStatusHelper" />
+            <argument type="service" id="Etbag\TrxpsPayments\Service\LoggerService" />
+            <argument type="service" id="router"/>
+            <argument>%kernel.environment%</argument>
+            <tag name="shopware.payment.method.async" />
+        </service>
+
+        <!-- iDeal PaymentHandler -->
+        <service id="Etbag\TrxpsPayments\Handler\Method\iDealPayment" class="Etbag\TrxpsPayments\Handler\Method\iDealPayment">
+            <argument type="service" id="Shopware\Core\Checkout\Order\Aggregate\OrderTransaction\OrderTransactionStateHandler" />
+            <argument type="service" id="Etbag\TrxpsPayments\Service\OrderService" />
+            <argument type="service" id="Etbag\TrxpsPayments\Service\CustomerService" />
+            <argument type="service" id="Etbag\TrxpsPayments\Api\TrxpsApiClient" />
+            <argument type="service" id="Etbag\TrxpsPayments\Service\SettingsService" />
+            <argument type="service" id="Etbag\TrxpsPayments\Helper\PaymentStatusHelper" />
+            <argument type="service" id="Etbag\TrxpsPayments\Service\LoggerService" />
+            <argument type="service" id="router"/>
+            <argument>%kernel.environment%</argument>
+            <tag name="shopware.payment.method.async" />
+        </service>
+
+        <!-- PayDirekt PaymentHandler -->
+        <service id="Etbag\TrxpsPayments\Handler\Method\PayDirekt" class="Etbag\TrxpsPayments\Handler\Method\PayPalPayment">
+            <argument type="service" id="Shopware\Core\Checkout\Order\Aggregate\OrderTransaction\OrderTransactionStateHandler" />
+            <argument type="service" id="Etbag\TrxpsPayments\Service\OrderService" />
+            <argument type="service" id="Etbag\TrxpsPayments\Service\CustomerService" />
+            <argument type="service" id="Etbag\TrxpsPayments\Api\TrxpsApiClient" />
+            <argument type="service" id="Etbag\TrxpsPayments\Service\SettingsService" />
+            <argument type="service" id="Etbag\TrxpsPayments\Helper\PaymentStatusHelper" />
+            <argument type="service" id="Etbag\TrxpsPayments\Service\LoggerService" />
+            <argument type="service" id="router"/>
+            <argument>%kernel.environment%</argument>
+            <tag name="shopware.payment.method.async" />
+        </service>
+
+        <!-- PayPal PaymentHandler -->
+        <service id="Etbag\TrxpsPayments\Handler\Method\PayPalPayment" class="Etbag\TrxpsPayments\Handler\Method\PayPalPayment">
+            <argument type="service" id="Shopware\Core\Checkout\Order\Aggregate\OrderTransaction\OrderTransactionStateHandler" />
+            <argument type="service" id="Etbag\TrxpsPayments\Service\OrderService" />
+            <argument type="service" id="Etbag\TrxpsPayments\Service\CustomerService" />
+            <argument type="service" id="Etbag\TrxpsPayments\Api\TrxpsApiClient" />
+            <argument type="service" id="Etbag\TrxpsPayments\Service\SettingsService" />
+            <argument type="service" id="Etbag\TrxpsPayments\Helper\PaymentStatusHelper" />
+            <argument type="service" id="Etbag\TrxpsPayments\Service\LoggerService" />
+            <argument type="service" id="router"/>
+            <argument>%kernel.environment%</argument>
+            <tag name="shopware.payment.method.async" />
+        </service>
+
+        <!-- Sofort PaymentHandler -->
+        <service id="Etbag\TrxpsPayments\Handler\Method\SofortPayment" class="Etbag\TrxpsPayments\Handler\Method\SofortPayment">
+            <argument type="service" id="Shopware\Core\Checkout\Order\Aggregate\OrderTransaction\OrderTransactionStateHandler" />
+            <argument type="service" id="Etbag\TrxpsPayments\Service\OrderService" />
+            <argument type="service" id="Etbag\TrxpsPayments\Service\CustomerService" />
+            <argument type="service" id="Etbag\TrxpsPayments\Api\TrxpsApiClient" />
+            <argument type="service" id="Etbag\TrxpsPayments\Service\SettingsService" />
+            <argument type="service" id="Etbag\TrxpsPayments\Helper\PaymentStatusHelper" />
+            <argument type="service" id="Etbag\TrxpsPayments\Service\LoggerService" />
+            <argument type="service" id="router"/>
+            <argument>%kernel.environment%</argument>
+            <tag name="shopware.payment.method.async" />
+        </service>
+
+        <!-- Trxps PaymentHandler -->
+        <service id="Etbag\TrxpsPayments\Handler\Method\TrxpsPayment" class="Etbag\TrxpsPayments\Handler\Method\TrxpsPayment">
+            <argument type="service" id="Shopware\Core\Checkout\Order\Aggregate\OrderTransaction\OrderTransactionStateHandler" />
+            <argument type="service" id="Etbag\TrxpsPayments\Service\OrderService" />
+            <argument type="service" id="Etbag\TrxpsPayments\Service\CustomerService" />
+            <argument type="service" id="Etbag\TrxpsPayments\Api\TrxpsApiClient" />
+            <argument type="service" id="Etbag\TrxpsPayments\Service\SettingsService" />
+            <argument type="service" id="Etbag\TrxpsPayments\Helper\PaymentStatusHelper" />
+            <argument type="service" id="Etbag\TrxpsPayments\Service\LoggerService" />
+            <argument type="service" id="router"/>
+            <argument>%kernel.environment%</argument>
+            <tag name="shopware.payment.method.async" />
+        </service>
+
+    </services>
+
+</container>

@@ -1,0 +1,1 @@
+<h1 align="center">Trxps for Shopware 6</h1>

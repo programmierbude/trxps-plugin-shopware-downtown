@@ -1,0 +1,165 @@
+<?xml version="1.0" ?>
+
+<container xmlns="http://symfony.com/schema/dic/services"
+           xmlns:xsi="http://www.w3.org/2001/XMLSchema-instance"
+           xsi:schemaLocation="http://symfony.com/schema/dic/services http://symfony.com/schema/dic/services/services-1.0.xsd">
+
+    <imports>
+        <import resource="services/api.xml"/>
+        <import resource="services/facades.xml"/>
+        <import resource="services/services.xml"/>
+    </imports>
+
+    <services>
+
+        <!-- Configuration -->
+        <service id="Etbag\TrxpsPayments\Config\Config" class="Etbag\TrxpsPayments\Config\Config">
+            <argument type="service" id="Shopware\Core\System\SystemConfig\SystemConfigService"/>
+        </service>
+
+        <!-- Configuration -->
+        <service id="Etbag\TrxpsPayments\Service\ConfigService" class="Etbag\TrxpsPayments\Service\ConfigService">
+            <argument type="service" id="Shopware\Core\System\SystemConfig\SystemConfigService"/>
+        </service>
+
+        <!-- Helpers -->
+        <service id="Etbag\TrxpsPayments\Helper\OrderStateHelper" class="Etbag\TrxpsPayments\Helper\OrderStateHelper">
+            <argument type="service" id="Etbag\TrxpsPayments\Service\LoggerService"/>
+            <argument type="service" id="Shopware\Core\System\StateMachine\StateMachineRegistry"/>
+        </service>
+
+        <service id="Etbag\TrxpsPayments\Helper\PaymentStatusHelper" class="Etbag\TrxpsPayments\Helper\PaymentStatusHelper">
+            <argument type="service" id="Etbag\TrxpsPayments\Service\LoggerService"/>
+            <argument type="service" id="Etbag\TrxpsPayments\Helper\OrderStateHelper"/>
+            <argument type="service" id="Shopware\Core\Checkout\Order\Aggregate\OrderTransaction\OrderTransactionStateHandler"/>
+            <argument type="service" id="Etbag\TrxpsPayments\Service\SettingsService"/>
+            <argument type="service" id="Shopware\Core\System\StateMachine\StateMachineRegistry"/>
+            <argument type="service" id="payment_method.repository"/>
+            <argument type="service" id="order_transaction.repository"/>
+        </service>
+
+        <service id="Etbag\TrxpsPayments\Service\CustomerService" class="Etbag\TrxpsPayments\Service\CustomerService">
+            <argument type="service" id="country.repository"/>
+            <argument type="service" id="customer.repository"/>
+            <argument type="service" id="event_dispatcher"/>
+            <argument type="service" id="monolog.logger"/>
+            <argument type="service" id="Shopware\Core\System\SalesChannel\Context\SalesChannelContextPersister"/>
+            <argument type="service" id="salutation.repository"/>
+            <argument>%kernel.shopware_version%</argument>
+        </service>
+
+        <service id="Etbag\TrxpsPayments\Service\LoggerService" class="Etbag\TrxpsPayments\Service\LoggerService">
+            <argument type="service" id="log_entry.repository"/>
+        </service>
+
+        <service id="Etbag\TrxpsPayments\Service\OrderService" class="Etbag\TrxpsPayments\Service\OrderService">
+            <argument type="service" id="order.repository"/>
+            <argument type="service" id="order_line_item.repository"/>
+            <argument type="service" id="monolog.logger"/>
+            <argument type="service" id="Etbag\TrxpsPayments\Validator\OrderLineItemValidator"/>
+        </service>
+
+        <service id="Etbag\TrxpsPayments\Service\PaymentMethodService" class="Etbag\TrxpsPayments\Service\PaymentMethodService" public="true">
+            <argument type="service" id="Shopware\Core\Content\Media\MediaService"/>
+            <argument type="service" id="media.repository"/>
+            <argument type="service" id="payment_method.repository"/>
+            <argument type="service" id="Shopware\Core\Framework\Plugin\Util\PluginIdProvider"/>
+        </service>
+
+        <service id="Etbag\TrxpsPayments\Service\SettingsService" class="Etbag\TrxpsPayments\Service\SettingsService">
+            <argument type="service" id="Shopware\Core\System\SystemConfig\SystemConfigService"/>
+        </service>
+
+        <service id="Etbag\TrxpsPayments\Service\ShopService" class="Etbag\TrxpsPayments\Service\ShopService">
+            <argument type="service" id="router"/>
+        </service>
+
+        <service id="Etbag\TrxpsPayments\Service\TransactionService" class="Etbag\TrxpsPayments\Service\TransactionService">
+            <argument type="service" id="order_transaction.repository"/>
+        </service>
+
+        <!-- Controllers -->
+
+        <service id="Etbag\TrxpsPayments\Storefront\Controller\ConfigController" public="true">
+            <call method="setContainer">
+                <argument type="service" id="service_container"/>
+            </call>
+        </service>
+
+        <service id="Etbag\TrxpsPayments\Storefront\Controller\RefundController" public="true">
+            <argument type="service" id="Etbag\TrxpsPayments\Factory\TrxpsApiFactory"/>
+            <argument type="service" id="order_line_item.repository"/>
+            <argument type="service" id="Etbag\TrxpsPayments\Service\OrderService"/>
+            <argument type="service" id="Shopware\Core\Checkout\Order\Aggregate\OrderTransaction\OrderTransactionStateHandler"/>
+            <argument type="service" id="Etbag\TrxpsPayments\Service\SettingsService"/>
+
+            <call method="setContainer">
+                <argument type="service" id="service_container"/>
+            </call>
+        </service>
+
+        <service id="Etbag\TrxpsPayments\Storefront\Controller\PaymentController" public="true">
+            <argument type="service" id="router"/>
+            <argument type="service" id="Etbag\TrxpsPayments\Api\TrxpsApiClient"/>
+            <argument type="service" id="Shopware\Core\Framework\Event\BusinessEventDispatcher"/>
+            <argument type="service" id="Etbag\TrxpsPayments\Helper\OrderStateHelper"/>
+            <argument type="service" id="Etbag\TrxpsPayments\Helper\PaymentStatusHelper"/>
+            <argument type="service" id="Etbag\TrxpsPayments\Service\SettingsService"/>
+            <argument type="service" id="Etbag\TrxpsPayments\Service\TransactionService"/>
+            <argument type="service" id="Etbag\TrxpsPayments\Service\LoggerService"/>
+
+            <call method="setContainer">
+                <argument type="service" id="service_container"/>
+            </call>
+        </service>
+
+        <service id="Etbag\TrxpsPayments\Storefront\Controller\WebhookController" public="true">
+            <argument type="service" id="router"/>
+            <argument type="service" id="order.repository"/>
+            <argument type="service" id="Etbag\TrxpsPayments\Api\TrxpsApiClient"/>
+            <argument type="service" id="Etbag\TrxpsPayments\Helper\PaymentStatusHelper"/>
+            <argument type="service" id="Etbag\TrxpsPayments\Service\SettingsService"/>
+            <argument type="service" id="Etbag\TrxpsPayments\Service\LoggerService"/>
+
+            <call method="setContainer">
+                <argument type="service" id="service_container"/>
+            </call>
+        </service>
+
+        <!-- Subscribers -->
+
+        <service id="Etbag\TrxpsPayments\Subscriber\CheckoutConfirmPageSubscriber" class="Etbag\TrxpsPayments\Subscriber\CheckoutConfirmPageSubscriber">
+            <argument type="service" id="Etbag\TrxpsPayments\Api\TrxpsApiClient"/>
+            <argument type="service" id="Etbag\TrxpsPayments\Service\SettingsService"/>
+            <argument type="service" id="language.repository"/>
+            <argument type="service" id="locale.repository"/>
+            <tag name="kernel.event_subscriber"/>
+        </service>
+
+
+        <service id="Etbag\TrxpsPayments\Subscriber\OrderStateSubscriber" class="Etbag\TrxpsPayments\Subscriber\OrderStateSubscriber">
+            <argument type="service" id="Etbag\TrxpsPayments\Api\TrxpsApiClient"/>
+            <argument type="service" id="Etbag\TrxpsPayments\Service\OrderService"/>
+            <argument type="service" id="Etbag\TrxpsPayments\Service\PaymentMethodService"/>
+            <tag name="kernel.event_subscriber"/>
+        </service>
+
+        <service id="Etbag\TrxpsPayments\Subscriber\PaymentStateSubscriber" class="Etbag\TrxpsPayments\Subscriber\PaymentStateSubscriber">
+            <argument type="service" id="Etbag\TrxpsPayments\Api\TrxpsApiClient"/>
+            <argument type="service" id="Etbag\TrxpsPayments\Service\TransactionService"/>
+            <tag name="kernel.event_subscriber"/>
+        </service>
+
+        <service id="Etbag\TrxpsPayments\Subscriber\PaymentMethodSubscriber" class="Etbag\TrxpsPayments\Subscriber\PaymentMethodSubscriber">
+            <argument type="service" id="Etbag\TrxpsPayments\Api\TrxpsApiClient"/>
+            <argument type="service" id="payment_method.repository"/>
+            <tag name="kernel.event_subscriber"/>
+        </service>
+
+
+        <!-- Validators -->
+        <service id="Etbag\TrxpsPayments\Validator\OrderLineItemValidator"/>
+
+    </services>
+
+</container>

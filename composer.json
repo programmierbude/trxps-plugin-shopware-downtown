@@ -1,0 +1,66 @@
+{
+  "name": "etbag/trxps-payments-plugin",
+  "description": "Trxps Payments",
+  "version": "v1.1.1",
+  "type": "shopware-platform-plugin",
+  "license": "MIT",
+  "authors": [
+    {
+      "name": "ETB AG"
+    }
+  ],
+  "extra": {
+    "shopware-plugin-class": "Etbag\\TrxpsPayments\\TrxpsPayments",
+    "copyright": "(c) by Etbag Digital Commerce",
+    "label": {
+      "de-DE": "Trxps Zahlungen",
+      "en-GB": "Trxps Payments",
+      "nl-NL": "Trxps Betalingen"
+    },
+    "description": {
+      "de-DE": "Mit Trxps integrieren Sie alle wichtigen internationalen und lokalen Zahlungsmethoden in nur einem Schritt in Ihren Shopware-Webshop. Starten Sie noch heute!",
+      "en-GB": "With Trxps you integrate every major global and local payment method in your Shopware webshop in one go. Start growing your business with effortless payments today!",
+      "nl-NL": "Met Trxps integreer je alle belangrijke internationale en lokale betaalmethoden in één keer in je Shopware webshop. Start vandaag nog!"
+    },
+    "manufacturerLink": {
+      "de-DE": "https://store.shopware.com/trxps.html",
+      "en-GB": "https://store.shopware.com/trxps.html",
+      "nl-NL": "https://store.shopware.com/trxps.html"
+    },
+    "supportLink": {
+      "de-DE": "https://www.trxps.com/contact",
+      "en-GB": "https://www.trxps.com/contact",
+      "nl-NL": "https://www.trxps.com/contact"
+    }
+  },
+  "config": {
+    "optimize-autoloader": true
+  },
+  "autoload": {
+    "psr-4": {
+      "Etbag\\TrxpsPayments\\": "src/",
+      "Trxps\\Api\\": "vendor/trxps/trxps-api-php/src/"
+    }
+  },
+  "suggest": {
+    "shopware/storefront": "Require '*'. Enables features like Creditcard Components and iDeal issuer selector.",
+    "shopware/administration": "Require '*'. Enables features like partial shipping and refunding."
+  },
+  "conflict": {
+    "shopware/storefront": "<6,>=7",
+    "shopware/administration": "<6,>=7"
+  },
+  "require": {
+    "php": ">=5.6",
+    "ext-curl": "*",
+    "ext-json": "*",
+    "ext-openssl": "*",
+    "composer/ca-bundle": "^1.1",
+    "guzzlehttp/guzzle": "^6.3 || ^7.0"
+  },
+  "require-dev": {
+    "shopware/core": "*",
+    "shopware/administration": "*",
+    "shopware/storefront": "*"
+  }
+}

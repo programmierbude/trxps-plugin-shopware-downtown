@@ -166,7 +166,7 @@ class PaymentHandler implements AsynchronousPaymentHandlerInterface
          * Set the API keys at Trxps based on the current context.
          */
         try {
-            $this->setApiKeysBySalesChannelContext($salesChannelContext);
+            $this->setApiKeysBySalesChannelContext($transaction->getOrder()->getId(), $salesChannelContext);
         } catch (Exception $e) {
             $this->logger->addEntry(
                 $e->getMessage(),
@@ -339,7 +339,7 @@ class PaymentHandler implements AsynchronousPaymentHandlerInterface
          * Set the API keys at Trxps based on the current context.
          */
         try {
-            $this->setApiKeysBySalesChannelContext($salesChannelContext);
+            $this->setApiKeysBySalesChannelContext($order->getId(), $salesChannelContext);
         } catch (Exception $e) {
             $this->logger->addEntry(
                 $e->getMessage(),
@@ -710,33 +710,16 @@ class PaymentHandler implements AsynchronousPaymentHandlerInterface
      *
      * @throws ApiException
      */
-    private function setApiKeysBySalesChannelContext(SalesChannelContext $context): void
+    private function setApiKeysBySalesChannelContext(string $orderId, SalesChannelContext $context): void
     {
         try {
-            /** @var TrxpsSettingStruct $settings */
-            $settings = $this->settingsService->getSettings($context->getSalesChannel()->getId());
+            $apiKey = $this->getMerchantApiKey($orderId, $context);
+            $shopId = $this->getMerchantShopId($orderId, $context);
+            $testmode = $this->getMerchantTestMode($orderId, $context);
 
-            /** @var string $apiKey */
-            $apiKey = $settings->isTestMode() === false ? $settings->getLiveApiKey() : $settings->getTestApiKey();
-            $shopId = $settings->isTestMode() === false ? $settings->getLiveShopId() : $settings->getTestShopId();
-
-            // Log the used API keys
-            if ($settings->isDebugMode()) {
-                $this->logger->addEntry(
-                    sprintf('Selected API key %s for sales channel %s (%s) | Selected Shop ID %s for sales channel %s (%s)', $apiKey, $context->getSalesChannel()->getName(), $settings->isTestMode() ? 'test-mode' : 'live-mode', $shopId, $context->getSalesChannel()->getName(), $settings->isTestMode() ? 'test-mode' : 'live-mode'),
-                    $context->getContext(),
-                    null,
-                    [
-                        'apiKey' => $apiKey,
-                        'shopId' => $shopId,
-                    ]
-                );
-            }
-
-            // Set the API key
             $this->apiClient->setApiKey($apiKey);
             $this->apiClient->setShopId($shopId);
-            $this->apiClient->setApiTestmode($settings->isTestMode());
+            $this->apiClient->setApiTestmode($testmode);
         } catch (InconsistentCriteriaIdsException $e) {
             $this->logger->addEntry(
                 $e->getMessage(),
@@ -750,5 +733,68 @@ class PaymentHandler implements AsynchronousPaymentHandlerInterface
 
             throw new RuntimeException(sprintf('Could not set Trxps Api Key, error: %s', $e->getMessage()));
         }
+    }
+
+
+    /**
+     * @param string $orderId
+     * @param SalesChannelContext $context
+     * @return bool
+     */
+    private function getMerchantTestMode(string $orderId, SalesChannelContext $context): bool
+    {
+        $order = $this->orderService->getOrder($orderId, $context->getContext());
+
+        /** @var MerchantCollection $merchants */
+        $merchants = $order->getExtension('merchants');
+
+        $merchList = $merchants->getElements();
+
+        /** @var MerchantEntity $merchant */
+        $merchant = array_shift($merchList);
+
+        return (bool)$merchant->isTrxpsTestEnabled();
+    }
+
+    /**
+     * @param string $orderId
+     * @param SalesChannelContext $context
+     * @return string
+     */
+    private function getMerchantApiKey(string $orderId, SalesChannelContext $context): string
+    {
+        $order = $this->orderService->getOrder($orderId, $context->getContext());
+
+        /** @var MerchantCollection $merchants */
+        $merchants = $order->getExtension('merchants');
+
+        $merchList = $merchants->getElements();
+
+        /** @var MerchantEntity $merchant */
+        $merchant = array_shift($merchList);
+
+        if ($merchant->isTrxpsTestEnabled()) {
+            return $merchant->getTrxpsTestKey();
+        }
+
+        return (string)$merchant->getTrxpsProdKey();
+    }
+    private function getMerchantShopId(string $orderId, SalesChannelContext $context): string
+    {
+        $order = $this->orderService->getOrder($orderId, $context->getContext());
+
+        /** @var MerchantCollection $merchants */
+        $merchants = $order->getExtension('merchants');
+
+        $merchList = $merchants->getElements();
+
+        /** @var MerchantEntity $merchant */
+        $merchant = array_shift($merchList);
+
+        if ($merchant->isTrxpsTestEnabled()) {
+            return $merchant->getTrxpsTestShopId();
+        }
+
+        return (string)$merchant->getTrxpsProdShopId();
     }
 }

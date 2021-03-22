@@ -104,6 +104,7 @@ class OrderService
             $criteria->addAssociation('lineItems.product.media');
             $criteria->addAssociation('deliveries');
             $criteria->addAssociation('deliveries.shippingOrderAddress');
+            $criteria->addAssociation('merchants');
             $criteria->addAssociation('transactions');
             $criteria->addAssociation('transactions.paymentMethod');
 

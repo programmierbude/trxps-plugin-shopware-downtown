@@ -14,22 +14,19 @@ use Etbag\TrxpsPayments\Setting\TrxpsSettingStruct;
 use Etbag\TrxpsPayments\Api\Exceptions\ApiException;
 use Etbag\TrxpsPayments\Api\TrxpsApiClient;
 use Etbag\TrxpsPayments\Api\Resources\Order;
-use Etbag\TrxpsPayments\Api\Types\PaymentStatus;
+use Etbag\TrxpsPayments\Service\OrderService;
+use Monolog\Logger;
 use RuntimeException;
 use Shopware\Core\Checkout\Cart\Exception\OrderNotFoundException;
 use Shopware\Core\Checkout\Order\Aggregate\OrderTransaction\OrderTransactionEntity;
 use Shopware\Core\Checkout\Order\OrderEntity;
 use Shopware\Core\Checkout\Order\OrderStates;
-use Shopware\Core\Framework\DataAbstractionLayer\EntityRepository;
 use Shopware\Core\Framework\DataAbstractionLayer\Exception\InconsistentCriteriaIdsException;
-use Shopware\Core\Framework\DataAbstractionLayer\Search\Criteria;
-use Shopware\Core\Framework\DataAbstractionLayer\Search\Filter\EqualsFilter;
 use Shopware\Core\Framework\Event\BusinessEventDispatcher;
 use Shopware\Core\Framework\Routing\Annotation\RouteScope;
 use Shopware\Core\System\SalesChannel\SalesChannelContext;
 use Shopware\Storefront\Controller\StorefrontController;
 use Symfony\Component\HttpFoundation\RedirectResponse;
-use Symfony\Component\HttpFoundation\Request;
 use Symfony\Component\HttpFoundation\Response;
 use Symfony\Component\Routing\Annotation\Route;
 use Symfony\Component\Routing\RouterInterface;
@@ -44,6 +41,9 @@ class PaymentController extends StorefrontController
 
     /** @var BusinessEventDispatcher */
     private $eventDispatcher;
+
+    /** @var OrderService */
+    protected $orderService;
 
     /** @var OrderStateHelper */
     private $orderStateHelper;
@@ -63,6 +63,7 @@ class PaymentController extends StorefrontController
     public function __construct(
         RouterInterface $router,
         TrxpsApiClient $apiClient,
+        OrderService $orderService,
         BusinessEventDispatcher $eventDispatcher,
         OrderStateHelper $orderStateHelper,
         PaymentStatusHelper $paymentStatusHelper,
@@ -73,6 +74,7 @@ class PaymentController extends StorefrontController
     {
         $this->router = $router;
         $this->apiClient = $apiClient;
+        $this->orderService = $orderService;
         $this->eventDispatcher = $eventDispatcher;
         $this->orderStateHelper = $orderStateHelper;
         $this->paymentStatusHelper = $paymentStatusHelper;
@@ -162,7 +164,7 @@ class PaymentController extends StorefrontController
         /**
          * Set the API keys at Trxps based on the current context.
          */
-        $this->setApiKeysBySalesChannelContext($context);
+        $this->setApiKeysBySalesChannelContext($order->getId(), $context);
 
         /**
          * The transaction return URL is used for redirecting the customer to the checkout
@@ -170,6 +172,7 @@ class PaymentController extends StorefrontController
          *
          * @var $trxpsOrder
          */
+
         if (is_array($customFields)) {
             if (isset($customFields['trxps_payments']['order_id'])) {
                 /** @var string $trxpsOrderId */
@@ -192,6 +195,7 @@ class PaymentController extends StorefrontController
          * The payment status of the order is fetched from Trxps's Orders API. We
          * use this payment status to set the status in Shopware.
          */
+
         if ($trxpsOrder !== null) {
             try {
                 $paymentStatus = $this->paymentStatusHelper->processPaymentStatus(
@@ -231,7 +235,7 @@ class PaymentController extends StorefrontController
         if (
             $paymentStatus !== null
             && (
-                $paymentStatus === "cancelled"
+                $paymentStatus === "canceled"
                 || $paymentStatus === "failed"
             )
         ) {
@@ -363,6 +367,68 @@ class PaymentController extends StorefrontController
         return new RedirectResponse($redirectUrl);
     }
 
+
+    /**
+     * @param string $orderId
+     * @param SalesChannelContext $context
+     * @return bool
+     */
+    private function getMerchantTestMode(string $orderId, SalesChannelContext $context): bool
+    {
+        $order = $this->orderService->getOrder($orderId, $context->getContext());
+
+        /** @var MerchantCollection $merchants */
+        $merchants = $order->getExtension('merchants');
+
+        $merchList = $merchants->getElements();
+
+        /** @var MerchantEntity $merchant */
+        $merchant = array_shift($merchList);
+
+        return (bool)$merchant->isTrxpsTestEnabled();
+    }
+
+    /**
+     * @param string $orderId
+     * @param SalesChannelContext $context
+     * @return string
+     */
+    private function getMerchantApiKey(string $orderId, SalesChannelContext $context): string
+    {
+        $order = $this->orderService->getOrder($orderId, $context->getContext());
+
+        /** @var MerchantCollection $merchants */
+        $merchants = $order->getExtension('merchants');
+
+        $merchList = $merchants->getElements();
+
+        /** @var MerchantEntity $merchant */
+        $merchant = array_shift($merchList);
+
+        if ($merchant->isTrxpsTestEnabled()) {
+            return $merchant->getTrxpsTestKey();
+        }
+
+        return (string)$merchant->getTrxpsProdKey();
+    }
+    private function getMerchantShopId(string $orderId, SalesChannelContext $context): string
+    {
+        $order = $this->orderService->getOrder($orderId, $context->getContext());
+
+        /** @var MerchantCollection $merchants */
+        $merchants = $order->getExtension('merchants');
+
+        $merchList = $merchants->getElements();
+
+        /** @var MerchantEntity $merchant */
+        $merchant = array_shift($merchList);
+
+        if ($merchant->isTrxpsTestEnabled()) {
+            return $merchant->getTrxpsTestShopId();
+        }
+
+        return (string)$merchant->getTrxpsProdShopId();
+    }
     /**
      * Sets the API keys for Trxps based on the current context.
      *
@@ -370,33 +436,16 @@ class PaymentController extends StorefrontController
      *
      * @throws ApiException
      */
-    private function setApiKeysBySalesChannelContext(SalesChannelContext $context): void
+    private function setApiKeysBySalesChannelContext(string $orderId, SalesChannelContext $context): void
     {
         try {
-            /** @var TrxpsSettingStruct $settings */
-            $settings = $this->settingsService->getSettings($context->getSalesChannel()->getId());
+            $apiKey = $this->getMerchantApiKey($orderId, $context);
+            $shopId = $this->getMerchantShopId($orderId, $context);
+            $testmode = $this->getMerchantTestMode($orderId, $context);
 
-            /** @var string $apiKey */
-            $apiKey = $settings->isTestMode() === false ? $settings->getLiveApiKey() : $settings->getTestApiKey();
-            $shopId = $settings->isTestMode() === false ? $settings->getLiveShopId() : $settings->getTestShopId();
-
-            // Log the used API keys
-            if ($settings->isDebugMode()) {
-                $this->logger->addEntry(
-                    sprintf('Selected API key %s for sales channel %s (%s) | Selected Shop ID %s for sales channel %s (%s)', $apiKey, $context->getSalesChannel()->getName(), $settings->isTestMode() ? 'test-mode' : 'live-mode', $shopId, $context->getSalesChannel()->getName(), $settings->isTestMode() ? 'test-mode' : 'live-mode'),
-                    $context->getContext(),
-                    null,
-                    [
-                        'apiKey' => $apiKey,
-                        'shopId' => $shopId,
-                    ]
-                );
-            }
-
-            // Set the API key
             $this->apiClient->setApiKey($apiKey);
             $this->apiClient->setShopId($shopId);
-            $this->apiClient->setApiTestmode($settings->isTestMode());
+            $this->apiClient->setApiTestmode($testmode);
         } catch (InconsistentCriteriaIdsException $e) {
             $this->logger->addEntry(
                 $e->getMessage(),
@@ -404,7 +453,8 @@ class PaymentController extends StorefrontController
                 $e,
                 [
                     'function' => 'set-trxps-api-key',
-                ]
+                ],
+                Logger::ERROR
             );
 
             throw new RuntimeException(sprintf('Could not set Trxps Api Key, error: %s', $e->getMessage()));

@@ -102,6 +102,7 @@
         <service id="Etbag\TrxpsPayments\Storefront\Controller\PaymentController" public="true">
             <argument type="service" id="router"/>
             <argument type="service" id="Etbag\TrxpsPayments\Api\TrxpsApiClient"/>
+            <argument type="service" id="Etbag\TrxpsPayments\Service\OrderService"/>
             <argument type="service" id="Shopware\Core\Framework\Event\BusinessEventDispatcher"/>
             <argument type="service" id="Etbag\TrxpsPayments\Helper\OrderStateHelper"/>
             <argument type="service" id="Etbag\TrxpsPayments\Helper\PaymentStatusHelper"/>

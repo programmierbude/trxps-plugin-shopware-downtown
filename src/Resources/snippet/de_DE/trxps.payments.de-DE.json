@@ -1,0 +1,13 @@
+{
+  "trxpsPayments": {
+    "messages": {
+      "payment": {
+        "error": "Zahlung fehlgeschlagen",
+        "failed": "Die Zahlung ist fehlgeschlagen oder wurde storniert. Sie werden zu Trxps weitergeleitet, wo Sie Ihre Zahlung mit der Methode Ihrer Wahl abschließen können. ",
+        "buttonPayThroughTrxps": "Bezahlen Sie mit einer anderen Zahlungsart",
+        "buttonReturnToShop": "Zurück zum Webshop"
+      },
+      "redirecting": "Wir leiten Sie weiter zu: "
+    }
+  }
+}

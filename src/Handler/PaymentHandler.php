@@ -640,8 +640,8 @@ class PaymentHandler implements AsynchronousPaymentHandlerInterface
                 'currency' => 'EUR',
                 'amount' => ((float)$orderData['amount']['value'])*100,
                 'reference' => $orderData['orderNumber'],
-                'success_url' => $returnUrl, //$orderData['redirectUrl']
-                'cancel_url' => $returnUrl, //$orderData['redirectUrl']
+                'success_url' => $orderData['redirectUrl'], //$returnUrl
+                'cancel_url' => $orderData['redirectUrl'], //$returnUrl
                 'statement_descriptor' => 'Bestellung '.$orderData['orderNumber'],
             ]);
         } catch (ApiException $e) {

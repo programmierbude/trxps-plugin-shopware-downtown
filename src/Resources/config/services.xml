@@ -106,6 +106,7 @@
             <argument type="service" id="Etbag\TrxpsPayments\Helper\OrderStateHelper"/>
             <argument type="service" id="Etbag\TrxpsPayments\Helper\PaymentStatusHelper"/>
             <argument type="service" id="Etbag\TrxpsPayments\Service\SettingsService"/>
+            <argument type="service" id="Etbag\TrxpsPayments\Service\CustomerService"/>
             <argument type="service" id="Etbag\TrxpsPayments\Service\TransactionService"/>
             <argument type="service" id="Etbag\TrxpsPayments\Service\LoggerService"/>
 

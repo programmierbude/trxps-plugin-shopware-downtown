@@ -208,7 +208,7 @@ class PaymentHandler implements AsynchronousPaymentHandlerInterface
                     }
                 }
                 $orderData = $this->prepareOrderForTrxps(
-                    $this->paymentMethod,
+                    // $this->paymentMethod,
                     $transaction->getOrderTransaction()->getId(),
                     $order,
                     $transaction->getReturnUrl(),
@@ -223,6 +223,7 @@ class PaymentHandler implements AsynchronousPaymentHandlerInterface
                 $trxpsOrder = $this->createOrderAtTrxps(
                     $orderData,
                     $transaction->getReturnUrl(),
+                    $customer,
                     $order,
                     $salesChannelContext
                 );
@@ -457,17 +458,14 @@ class PaymentHandler implements AsynchronousPaymentHandlerInterface
      * @param string              $returnUrl
      * @param SalesChannelContext $salesChannelContext
      *
-     * @param array               $paymentData
-     *
      * @return array
      */
     public function prepareOrderForTrxps(
-        string $paymentMethod,
+        // string $paymentMethod,
         string $transactionId,
         OrderEntity $order,
         string $returnUrl,
-        SalesChannelContext $salesChannelContext,
-        array $paymentData = []
+        SalesChannelContext $salesChannelContext
     ): array
     {
         /** @var TrxpsSettingStruct $settings */
@@ -530,83 +528,36 @@ class PaymentHandler implements AsynchronousPaymentHandlerInterface
          */
         $locale = $order->getLanguage() !== null ? $order->getLanguage()->getLocale() : null;
 
+        $billingAddress = $customer->getDefaultBillingAddress();
+
         /**
          * Build an array of order data to send in the request
          * to Trxps's Orders API to create an order payment.
          */
         $orderData = [
-            self::FIELD_AMOUNT => $this->orderService->getPriceArray(
-                $currency !== null ? $currency->getIsoCode() : 'EUR',
-                $order->getAmountTotal()
-            ),
-            self::FIELD_REDIRECT_URL => $this->router->generate('frontend.trxps.payment', [
+            'currency' => 'EUR',
+            'reference' => $order->getOrderNumber(),
+            'success_url' => $returnUrl,
+            'amount' => $order->getAmountTotal()*100,
+            'cancel_url' => $this->router->generate('frontend.trxps.payment', [
                 'transactionId' => $transactionId,
                 'returnUrl' => urlencode($returnUrl),
             ], $this->router::ABSOLUTE_URL),
-            self::FIELD_LOCALE => $locale !== null ? $locale->getCode() : null,
-            self::FIELD_METHOD => $paymentMethod,
-            self::FIELD_ORDER_NUMBER => $order->getOrderNumber(),
-            self::FIELD_LINES => $this->orderService->getOrderLinesArray($order),
-            self::FIELD_BILLING_ADDRESS => $this->customerService->getAddressArray(
-                $customer->getDefaultBillingAddress(),
-                $customer
-            ),
-            self::FIELD_SHIPPING_ADDRESS => $this->customerService->getAddressArray(
-                $customer->getDefaultShippingAddress(),
-                $customer
-            ),
-            self::FIELD_PAYMENT => $paymentData,
+            'statement_descriptor' => 'Bestellung '.$order->getOrderNumber(),
+            'customer' => [
+                'email' => $customer->getEmail(),
+                'first_name' => $customer->getFirstName(),
+                'last_name' => $customer->getLastName(),
+                'company' => $customer->getCompany(),
+            ],
+            'billing_address' => [
+                'line1' => $billingAddress->getStreet(),
+                'city' => $billingAddress->getCity(),
+                'country' => $billingAddress->getCountry()->getIso(),
+                'postal_code' => $billingAddress->getZipcode(),
+                'state' => ($billingAddress->getCountryState() ? $billingAddress->getCountryState()->getShortCode() : null),
+            ]
         ];
-
-        /**
-         * Handle vat free orders.
-         */
-        if ($order->getTaxStatus() === CartPrice::TAX_STATE_FREE) {
-            $orderData[self::FIELD_AMOUNT] = $this->orderService->getPriceArray(
-                $currency !== null ? $currency->getIsoCode() : 'EUR',
-                $order->getAmountNet()
-            );
-        }
-
-        // Temporarily disabled due to errors with Paypal
-        // $orderData = $this->processPaymentMethodSpecificParameters($orderData, $salesChannelContext, $customer, $locale);
-
-        /**
-         * Generate the URL for Trxps's webhook call only on prod environment. This webhook is used
-         * to handle payment updates.
-         */
-        if (
-            getenv(self::ENV_LOCAL_DEVELOPMENT) === false
-            || (bool) getenv(self::ENV_LOCAL_DEVELOPMENT) === false
-        ) {
-            $orderData[self::FIELD_WEBHOOK_URL] = $this->router->generate('frontend.trxps.webhook', [
-                'orderNumber' => $order->getOrderNumber()
-            ], $this->router::ABSOLUTE_URL);
-        }
-
-        $customFields = $customer->getCustomFields();
-
-        // To connect orders too customers.
-        if (isset($customFields[CustomerService::CUSTOM_FIELDS_KEY_TRXPS_CUSTOMER_ID])
-            && (string)$customFields[CustomerService::CUSTOM_FIELDS_KEY_TRXPS_CUSTOMER_ID] !== ''
-            && $settings->isTestMode() === false
-        ) {
-            $orderData['payment']['customerId'] = $customFields[CustomerService::CUSTOM_FIELDS_KEY_TRXPS_CUSTOMER_ID];
-        }
-
-        $orderData = array_merge($orderData, $this->paymentMethodData);
-
-        // Log the order data
-        if ($settings->isDebugMode()) {
-            $this->logger->addEntry(
-                sprintf('Order %s is prepared to be paid through Trxps', $order->getOrderNumber()),
-                $salesChannelContext->getContext(),
-                null,
-                [
-                    'orderData' => $orderData,
-                ]
-            );
-        }
 
         return $orderData;
     }
@@ -623,7 +574,7 @@ class PaymentHandler implements AsynchronousPaymentHandlerInterface
      *
      * @throws RuntimeException
      */
-    public function createOrderAtTrxps(array $orderData, string $returnUrl, OrderEntity $order, SalesChannelContext $salesChannelContext)
+    public function createOrderAtTrxps(array $orderData, string $returnUrl, ?CustomerEntity $customer, OrderEntity $order, SalesChannelContext $salesChannelContext)
     {
         /** @var Order|null $trxpsOrder */
         $trxpsOrder = null;
@@ -636,14 +587,11 @@ class PaymentHandler implements AsynchronousPaymentHandlerInterface
          * @var Order $trxpsOrder
          */
         try {
-            $trxpsOrder = $this->apiClient->performHttpCall("POST", "checkouts", [
-                'currency' => 'EUR',
-                'amount' => ((float)$orderData['amount']['value'])*100,
-                'reference' => $orderData['orderNumber'],
-                'success_url' => $returnUrl,
-                'cancel_url' => $orderData['redirectUrl'],
-                'statement_descriptor' => 'Bestellung '.$orderData['orderNumber'],
-            ]);
+            if (!isset($customer) || $customer === null) {
+                $customer = $salesChannelContext->getCustomer();
+            }
+
+            $trxpsOrder = $this->apiClient->performHttpCall("POST", "checkouts", $orderData);
         } catch (ApiException $e) {
             $this->logger->addEntry(
                 $e->getMessage(),

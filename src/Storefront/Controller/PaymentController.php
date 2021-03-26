@@ -8,6 +8,7 @@ use Etbag\TrxpsPayments\Event\PaymentPageRedirectEvent;
 use Etbag\TrxpsPayments\Helper\OrderStateHelper;
 use Etbag\TrxpsPayments\Helper\PaymentStatusHelper;
 use Etbag\TrxpsPayments\Service\LoggerService;
+use Etbag\TrxpsPayments\Service\CustomerService;
 use Etbag\TrxpsPayments\Service\SettingsService;
 use Etbag\TrxpsPayments\Service\TransactionService;
 use Etbag\TrxpsPayments\Setting\TrxpsSettingStruct;
@@ -20,6 +21,7 @@ use RuntimeException;
 use Shopware\Core\Checkout\Cart\Exception\OrderNotFoundException;
 use Shopware\Core\Checkout\Order\Aggregate\OrderTransaction\OrderTransactionEntity;
 use Shopware\Core\Checkout\Order\OrderEntity;
+use Shopware\Core\Checkout\Cart\Price\Struct\CartPrice;
 use Shopware\Core\Checkout\Order\OrderStates;
 use Shopware\Core\Framework\DataAbstractionLayer\Exception\InconsistentCriteriaIdsException;
 use Shopware\Core\Framework\Event\BusinessEventDispatcher;
@@ -33,6 +35,22 @@ use Symfony\Component\Routing\RouterInterface;
 
 class PaymentController extends StorefrontController
 {
+
+    protected const FIELD_AMOUNT = 'amount';
+    protected const FIELD_REDIRECT_URL = 'redirectUrl';
+    protected const FIELD_LOCALE = 'locale';
+    protected const FIELD_METHOD = 'method';
+    protected const FIELD_ORDER_NUMBER = 'orderNumber';
+    protected const FIELD_LINES = 'lines';
+    protected const FIELD_BILLING_ADDRESS = 'billingAddress';
+    protected const FIELD_BILLING_EMAIL = 'billingEmail';
+    protected const FIELD_SHIPPING_ADDRESS = 'shippingAddress';
+    protected const FIELD_PAYMENT = 'payment';
+    protected const FIELD_WEBHOOK_URL = 'webhookUrl';
+    protected const FIELD_DUE_DATE = 'dueDate';
+    protected const FIELD_EXPIRES_AT = 'expiresAt';
+    protected const ENV_LOCAL_DEVELOPMENT = 'TRXPS_LOCAL_DEVELOPMENT';
+
     /** @var RouterInterface */
     private $router;
 
@@ -47,6 +65,9 @@ class PaymentController extends StorefrontController
 
     /** @var OrderStateHelper */
     private $orderStateHelper;
+
+    /** @var CustomerService */
+    protected $customerService;
 
     /** @var PaymentStatusHelper */
     private $paymentStatusHelper;
@@ -68,6 +89,7 @@ class PaymentController extends StorefrontController
         OrderStateHelper $orderStateHelper,
         PaymentStatusHelper $paymentStatusHelper,
         SettingsService $settingsService,
+        CustomerService $customerService,
         TransactionService $transactionService,
         LoggerService $logger
     )
@@ -78,6 +100,7 @@ class PaymentController extends StorefrontController
         $this->eventDispatcher = $eventDispatcher;
         $this->orderStateHelper = $orderStateHelper;
         $this->paymentStatusHelper = $paymentStatusHelper;
+        $this->customerService = $customerService;
         $this->settingsService = $settingsService;
         $this->transactionService = $transactionService;
         $this->logger = $logger;
@@ -239,6 +262,13 @@ class PaymentController extends StorefrontController
                 || $paymentStatus === "failed"
             )
         ) {
+            $trxpsOrder = $this->apiClient->performHttpCall("POST", "checkouts", $this->prepareOrderForTrxps(
+                $transaction->getId(),
+                $order,
+                $redirectUrl,
+                $context
+            ));
+
             $redirectUrl = $trxpsOrder->payment_url;
 
             $paymentPageFailEvent = new PaymentPageFailEvent(
@@ -459,5 +489,94 @@ class PaymentController extends StorefrontController
 
             throw new RuntimeException(sprintf('Could not set Trxps Api Key, error: %s', $e->getMessage()));
         }
+    }
+
+    public function prepareOrderForTrxps(
+        string $transactionId,
+        OrderEntity $order,
+        string $returnUrl,
+        SalesChannelContext $salesChannelContext
+    ): array
+    {
+        /** @var TrxpsSettingStruct $settings */
+        $settings = $this->settingsService->getSettings(
+            $salesChannelContext->getSalesChannel()->getId(),
+            $salesChannelContext->getContext()
+        );
+
+        /**
+         * Retrieve the customer from the customer service in order to
+         * get an enriched customer entity. This is necessary to have the
+         * customer's addresses available in the customer entity.
+         */
+        if ($order->getOrderCustomer() !== null) {
+            $customer = $this->customerService->getCustomer(
+                $order->getOrderCustomer()->getCustomerId(),
+                $salesChannelContext->getContext()
+            );
+        }
+
+        /**
+         * If no customer is stored on the order, fallback to the logged in
+         * customer in the sales channel context.
+         */
+        if (!isset($customer) || $customer === null) {
+            $customer = $salesChannelContext->getCustomer();
+        }
+
+        /**
+         * If the customer isn't present, there is something wrong with the order.
+         * Therefore we stop the process.
+         */
+        if ($customer === null) {
+            throw new \UnexpectedValueException('Customer data could not be found');
+        }
+
+        /**
+         * Retrieve currency information from the order. This information is
+         * necessary for the payload data that is sent to Trxps's Orders API.
+         *
+         * If the order has no currency, we retrieve it from the sales channel context.
+         *
+         * @var CurrencyEntity $currency
+         */
+        $currency = $order->getCurrency();
+
+        if ($currency === null) {
+            $currency = $salesChannelContext->getCurrency();
+        }
+
+        $billingAddress = $customer->getDefaultBillingAddress();
+
+        /**
+         * Build an array of order data to send in the request
+         * to Trxps's Orders API to create an order payment.
+         */
+        $orderData = [
+            'currency' => 'EUR',
+            'reference' => $order->getOrderNumber(),
+            'success_url' => $returnUrl,
+            'amount' => $order->getAmountTotal()*100,
+            'cancel_url' => $this->router->generate('frontend.trxps.payment', [
+                'transactionId' => $transactionId,
+                'returnUrl' => urlencode($returnUrl),
+            ], $this->router::ABSOLUTE_URL),
+            'statement_descriptor' => 'Bestellung '.$order->getOrderNumber(),
+            'customer' => [
+                'email' => $customer->getEmail(),
+                'first_name' => $customer->getFirstName(),
+                'last_name' => $customer->getLastName(),
+                'company' => $customer->getCompany(),
+            ],
+            'billing_address' => [
+                'line1' => $billingAddress->getStreet(),
+                'city' => $billingAddress->getCity(),
+                'country' => $billingAddress->getCountry()->getIso(),
+                'postal_code' => $billingAddress->getZipcode(),
+                'state' => ($billingAddress->getCountryState() ? $billingAddress->getCountryState()->getShortCode() : null),
+            ]
+        ];
+
+        return $orderData;
     }
 }

@@ -261,7 +261,7 @@ class PaymentController extends StorefrontController
             $trxpsOrder = $this->apiClient->performHttpCall("POST", "checkouts", $this->prepareOrderForTrxps(
                 $transaction->getId(),
                 $order,
-                $redirectUrl,
+                urldecode($_GET['returnUrl']),
                 $context
             ));
 
